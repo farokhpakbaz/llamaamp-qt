@@ -13,6 +13,8 @@
 class PlayerController;
 class PlaylistModel;
 class MediaLibrary;
+class MprisService;
+class CommandPaletteDialog;
 class WasabiPlayerWidget;
 class QCloseEvent;
 class QComboBox;
@@ -51,6 +53,7 @@ private:
     void buildUi();
     void buildMenus();
     void connectSignals();
+    void connectDesktopIntegration();
     void applyStyle();
     void restoreState();
     void saveState() const;
@@ -71,6 +74,7 @@ private:
     int nextRow(bool automatic);
     void resetShuffleCycle();
     void cycleRepeatMode();
+    void setRepeatMode(RepeatMode mode);
     void updateRepeatButton();
     void refreshAudioOutputs();
     void selectAudioOutput(int index);
@@ -82,11 +86,14 @@ private:
     void updateQueueSummary();
     void showEqualizer();
     void showSkinBrowser();
+    void showCommandPalette();
     static QString formatTime(qint64 milliseconds);
 
     PlayerController *m_player = nullptr;
     PlaylistModel *m_playlistModel = nullptr;
     MediaLibrary *m_mediaLibrary = nullptr;
+    MprisService *m_mpris = nullptr;
+    CommandPaletteDialog *m_commandPalette = nullptr;
     QSortFilterProxyModel *m_filterModel = nullptr;
     QSortFilterProxyModel *m_libraryFilterModel = nullptr;
     QListView *m_playlistView = nullptr;

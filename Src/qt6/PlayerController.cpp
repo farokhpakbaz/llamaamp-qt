@@ -92,19 +92,21 @@ void PlayerController::seek(qint64 position)
 
 void PlayerController::setVolume(int percent)
 {
+    percent = qBound(0, percent, 100);
+    if (percent == m_volume)
+        return;
+    m_volume = percent;
     if (m_audioOutput)
-        m_audioOutput->setVolume(qBound(0, percent, 100) / 100.0);
+        m_audioOutput->setVolume(percent / 100.0);
     if (m_dspSink)
-        m_dspSink->setVolume(qBound(0, percent, 100) / 100.0);
+        m_dspSink->setVolume(percent / 100.0);
+    emit volumeChanged(percent);
 }
 
 QUrl PlayerController::source() const { return m_player->source(); }
 qint64 PlayerController::position() const { return m_player->position(); }
 qint64 PlayerController::duration() const { return m_player->duration(); }
-int PlayerController::volume() const
-{
-    return m_audioOutput ? qRound(m_audioOutput->volume() * 100.0) : 0;
-}
+int PlayerController::volume() const { return m_volume; }
 QMediaPlayer::PlaybackState PlayerController::playbackState() const { return m_player->playbackState(); }
 QMediaMetaData PlayerController::metaData() const { return m_player->metaData(); }
 QList<QAudioDevice> PlayerController::audioOutputs() const

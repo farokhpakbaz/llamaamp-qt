@@ -11,7 +11,7 @@ project(LlamaAmpQt
 
 option(LLAMAAMP_QT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets Sql)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core DBus Gui Widgets Multimedia MultimediaWidgets Sql)
 
 qt_standard_project_setup()
 set(CMAKE_AUTORCC ON)
@@ -55,9 +55,13 @@ set_target_properties(llamaamp-softclip-plugin PROPERTIES
 qt_add_executable(llamaamp-qt
     Src/qt6/AudioVisualizationWidget.cpp
     Src/qt6/AudioVisualizationWidget.h
+    Src/qt6/CommandPaletteDialog.cpp
+    Src/qt6/CommandPaletteDialog.h
     Src/qt6/main.cpp
     Src/qt6/MainWindow.cpp
     Src/qt6/MainWindow.h
+    Src/qt6/MprisService.cpp
+    Src/qt6/MprisService.h
     Src/qt6/WasabiPlayerWidget.cpp
     Src/qt6/WasabiPlayerWidget.h
     Src/qt6/resources.qrc
@@ -66,6 +70,7 @@ qt_add_executable(llamaamp-qt
 target_compile_features(llamaamp-qt PRIVATE cxx_std_20)
 target_link_libraries(llamaamp-qt PRIVATE
     Qt6::Core
+    Qt6::DBus
     Qt6::Gui
     Qt6::Widgets
     Qt6::Multimedia
@@ -156,4 +161,33 @@ if(BUILD_TESTING)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LLAMAAMP_QT_NO_AUDIO=1"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+
+    qt_add_executable(command-palette-test
+        Tests/qt6/CommandPaletteTest.cpp
+        Src/qt6/CommandPaletteDialog.cpp
+        Src/qt6/CommandPaletteDialog.h
+    )
+    target_link_libraries(command-palette-test PRIVATE Qt6::Test Qt6::Widgets)
+    target_include_directories(command-palette-test PRIVATE Src/qt6)
+    add_test(NAME command-palette-test COMMAND command-palette-test)
+    set_tests_properties(command-palette-test PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+
+    find_program(DBUS_RUN_SESSION_EXECUTABLE dbus-run-session)
+    if(DBUS_RUN_SESSION_EXECUTABLE)
+        qt_add_executable(mpris-service-test
+            Tests/qt6/MprisServiceTest.cpp
+            Src/qt6/MprisService.cpp
+            Src/qt6/MprisService.h
+        )
+        target_link_libraries(mpris-service-test PRIVATE
+            llamaamp-qt-core Qt6::DBus Qt6::Test Qt6::Widgets)
+        target_include_directories(mpris-service-test PRIVATE Src/qt6)
+        add_test(NAME mpris-service-test
+            COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:mpris-service-test>)
+        set_tests_properties(mpris-service-test PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LLAMAAMP_QT_NO_AUDIO=1"
+        )
+    endif()
 endif()

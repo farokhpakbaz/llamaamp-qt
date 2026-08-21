@@ -64,6 +64,7 @@ signals:
     void errorOccurred(const QString &message);
     void audioOutputsChanged();
     void hasVideoChanged(bool available);
+    void volumeChanged(int percent);
     void dspEnabledChanged(bool enabled);
     void audioSamplesReady(const QVector<float> &samples, int channelCount, int sampleRate);
 
@@ -77,6 +78,7 @@ private:
     Equalizer *m_equalizer = nullptr;
     PluginManager *m_pluginManager = nullptr;
     bool m_dspEnabled = false;
+    int m_volume = 100;
 
     void processAudioBuffer(const QAudioBuffer &buffer);
     void stopDspSink();

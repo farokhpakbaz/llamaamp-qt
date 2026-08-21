@@ -14,6 +14,8 @@ request checklist.
 - local and remote audio playback and embedded video through Qt Multimedia;
 - file, recursive-folder, command-line, URL, drag-and-drop, and M3U/M3U8 import;
 - play/pause, stop, next/previous, seeking, volume, shuffle, and repeat modes;
+- Linux MPRIS integration for media keys, lock screens, and desktop controls;
+- a searchable command palette (`Ctrl+K`) plus keyboard-first queue navigation;
 - selectable audio outputs with remembered settings;
 - metadata, embedded artwork, session restoration, and searchable queues;
 - a persistent SQLite media library;
@@ -26,7 +28,7 @@ request checklist.
 ## Requirements
 
 Install a C++20 compiler, CMake 3.22 or newer, and Qt 6.8 or newer with Core,
-Widgets, SQL, Multimedia, MultimediaWidgets, and Test development packages.
+Widgets, DBus, SQL, Multimedia, MultimediaWidgets, and Test development packages.
 On Debian and Ubuntu:
 
 ```sh
@@ -98,6 +100,17 @@ included Soft Clipper is a small example DSP module.
 ctest --test-dir build --output-on-failure
 cmake --install build --prefix ~/.local
 ```
+
+## Keyboard and desktop controls
+
+Press `Ctrl+K` to search every menu command. `Space` toggles playback,
+`Ctrl+Left`/`Ctrl+Right` change tracks, `Shift+Left`/`Shift+Right` seek by ten
+seconds, and `Ctrl+1` through `Ctrl+5` change pages. On Linux desktops,
+LlamaAmp also publishes playback state, track metadata, volume, shuffle, repeat,
+seeking, and URI opening through MPRIS.
+
+The current product direction and contributor-sized follow-up work are tracked
+in [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

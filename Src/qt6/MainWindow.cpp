@@ -8,10 +8,12 @@
 #include "PlayerController.h"
 #include "PlaylistModel.h"
 #include "MediaLibrary.h"
+#include "MprisService.h"
 #include "SkinManager.h"
 #include "WasabiPlayerWidget.h"
 #include "PluginManager.h"
 #include "Equalizer.h"
+#include "CommandPaletteDialog.h"
 
 #include <QApplication>
 #include <QAudioDevice>
@@ -100,6 +102,8 @@ MainWindow::MainWindow(QWidget *parent)
     buildMenus();
     buildUi();
     connectSignals();
+    m_mpris = new MprisService(m_player, this);
+    connectDesktopIntegration();
     applyStyle();
     restoreState();
     updateNowPlaying();
@@ -150,6 +154,22 @@ void MainWindow::buildMenus()
                             this, &MainWindow::previousTrack);
     playbackMenu->addAction(tr("Next"), QKeySequence(Qt::CTRL | Qt::Key_Right),
                             this, [this] { nextTrack(false); });
+    playbackMenu->addAction(tr("Stop"), QKeySequence(Qt::CTRL | Qt::Key_Period),
+                            m_player, &PlayerController::stop);
+    playbackMenu->addSeparator();
+    playbackMenu->addAction(tr("Seek backward 10 seconds"),
+                            QKeySequence(Qt::SHIFT | Qt::Key_Left), this, [this] {
+        m_player->seek(qMax<qint64>(0, m_player->position() - 10000));
+    });
+    playbackMenu->addAction(tr("Seek forward 10 seconds"),
+                            QKeySequence(Qt::SHIFT | Qt::Key_Right), this, [this] {
+        m_player->seek(qMin(m_player->duration(), m_player->position() + 10000));
+    });
+    playbackMenu->addAction(tr("Toggle shuffle"), this, [this] {
+        m_shuffleButton->toggle();
+    });
+    playbackMenu->addAction(tr("Cycle repeat mode"), this, &MainWindow::cycleRepeatMode);
+    playbackMenu->addSeparator();
     playbackMenu->addAction(tr("Video full screen"), QKeySequence(Qt::Key_F11), this, [this] {
         if (m_videoWidget && m_videoWidget->isVisible())
             m_videoWidget->setFullScreen(!m_videoWidget->isFullScreen());
@@ -161,6 +181,9 @@ void MainWindow::buildMenus()
     queueMenu->addAction(tr("Clear queue"), this, &MainWindow::clearPlaylist);
 
     auto *toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    toolsMenu->addAction(tr("Command palette…"), QKeySequence(Qt::CTRL | Qt::Key_K),
+                         this, &MainWindow::showCommandPalette);
+    toolsMenu->addSeparator();
     toolsMenu->addAction(tr("Equalizer…"), QKeySequence(Qt::CTRL | Qt::Key_E),
                          this, &MainWindow::showEqualizer);
     toolsMenu->addAction(tr("Plug-ins…"), this, [this] {
@@ -268,10 +291,14 @@ void MainWindow::buildUi()
     m_audioDeviceCombo = new QComboBox(sidebar);
     m_audioDeviceCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_audioDeviceCombo->setToolTip(tr("Audio output device"));
+    m_audioDeviceCombo->setAccessibleName(tr("Audio output device"));
     auto *volumeRow = new QHBoxLayout;
     volumeRow->addWidget(new QLabel(QStringLiteral("🔊"), sidebar));
     m_volumeSlider = new QSlider(Qt::Horizontal, sidebar);
     m_volumeSlider->setRange(0, 100);
+    m_volumeSlider->setObjectName(QStringLiteral("volumeSlider"));
+    m_volumeSlider->setAccessibleName(tr("Volume"));
+    m_volumeSlider->setAccessibleDescription(tr("Playback volume from 0 to 100 percent"));
     volumeRow->addWidget(m_volumeSlider);
     sideLayout->addWidget(outputHeading);
     sideLayout->addWidget(m_audioDeviceCombo);
@@ -279,6 +306,7 @@ void MainWindow::buildUi()
     auto *skinHeading = new QLabel(tr("SKIN"), sidebar);
     skinHeading->setObjectName(QStringLiteral("sideHeading"));
     m_skinCombo = new QComboBox(sidebar);
+    m_skinCombo->setAccessibleName(tr("Player skin"));
     m_skinCombo->addItems(SkinManager::availableSkins());
     for (const LegacySkinInfo &skin : SkinManager::legacySkinCatalog()) {
         if (SkinManager::canRenderWasabiSkin(skin))
@@ -339,6 +367,8 @@ void MainWindow::buildUi()
     m_searchEdit->setPlaceholderText(tr("Search queue…"));
     m_searchEdit->setClearButtonEnabled(true);
     m_searchEdit->setMaximumWidth(280);
+    m_searchEdit->setObjectName(QStringLiteral("librarySearch"));
+    m_searchEdit->setAccessibleName(tr("Search music"));
     m_resultCountLabel = new QLabel(content);
     auto *removeButton = new QPushButton(tr("Remove"), content);
     auto *clearButton = new QPushButton(tr("Clear"), content);
@@ -351,6 +381,9 @@ void MainWindow::buildUi()
     root->addLayout(queueHeader);
 
     m_playlistView = new QListView(content);
+    m_playlistView->setObjectName(QStringLiteral("playlistView"));
+    m_playlistView->setAccessibleName(tr("Playback queue"));
+    m_playlistView->setAccessibleDescription(tr("Press Enter to play the selected track"));
     m_playlistView->setModel(m_filterModel);
     m_playlistView->setAlternatingRowColors(true);
     m_playlistView->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -365,6 +398,8 @@ void MainWindow::buildUi()
     queuePageLayout->addWidget(m_playlistView);
 
     m_libraryView = new QTableView(content);
+    m_libraryView->setObjectName(QStringLiteral("libraryView"));
+    m_libraryView->setAccessibleName(tr("Media library"));
     m_libraryView->setModel(m_libraryFilterModel);
     m_libraryView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_libraryView->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -397,6 +432,9 @@ void MainWindow::buildUi()
     m_durationLabel = new QLabel(QStringLiteral("0:00"), transport);
     m_seekSlider = new QSlider(Qt::Horizontal, transport);
     m_seekSlider->setRange(0, 0);
+    m_seekSlider->setObjectName(QStringLiteral("seekSlider"));
+    m_seekSlider->setAccessibleName(tr("Track position"));
+    m_seekSlider->setAccessibleDescription(tr("Seek within the current track"));
     seekLayout->addWidget(m_elapsedLabel);
     seekLayout->addWidget(m_seekSlider, 1);
     seekLayout->addWidget(m_durationLabel);
@@ -406,6 +444,7 @@ void MainWindow::buildUi()
         auto *button = new QPushButton(transport);
         button->setIcon(style()->standardIcon(icon));
         button->setToolTip(tip);
+        button->setAccessibleName(tip);
         button->setFixedSize(44, 36);
         return button;
     };
@@ -416,8 +455,10 @@ void MainWindow::buildUi()
     auto *nextButton = makeButton(QStyle::SP_MediaSkipForward, tr("Next"));
     m_shuffleButton = new QPushButton(tr("Shuffle"), transport);
     m_shuffleButton->setCheckable(true);
+    m_shuffleButton->setAccessibleDescription(tr("Play queued tracks in a random order"));
     m_repeatButton = new QPushButton(transport);
     m_repeatButton->setFixedWidth(92);
+    m_repeatButton->setAccessibleDescription(tr("Cycle between off, repeat all, and repeat one"));
     controls->addStretch();
     controls->addWidget(m_shuffleButton);
     controls->addSpacing(12);
@@ -489,7 +530,7 @@ void MainWindow::buildUi()
 
 void MainWindow::connectSignals()
 {
-    connect(m_playlistView, &QListView::doubleClicked, this, &MainWindow::playViewIndex);
+    connect(m_playlistView, &QListView::activated, this, &MainWindow::playViewIndex);
     connect(m_searchEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         const QRegularExpression expression(QRegularExpression::escape(text),
                                             QRegularExpression::CaseInsensitiveOption);
@@ -594,6 +635,45 @@ void MainWindow::connectSignals()
         menu.addAction(tr("Remove selected from library"), this, &MainWindow::removeSelected);
         menu.exec(m_libraryView->viewport()->mapToGlobal(point));
     });
+}
+
+void MainWindow::connectDesktopIntegration()
+{
+    connect(m_mpris, &MprisService::raiseRequested, this, [this] {
+        showNormal();
+        raise();
+        activateWindow();
+    });
+    connect(m_mpris, &MprisService::quitRequested, qApp, &QApplication::quit);
+    connect(m_mpris, &MprisService::previousRequested, this, &MainWindow::previousTrack);
+    connect(m_mpris, &MprisService::nextRequested, this, [this] { nextTrack(false); });
+    connect(m_mpris, &MprisService::playRequested, this, &MainWindow::togglePlayback);
+    connect(m_mpris, &MprisService::openUriRequested, this, [this](const QString &uri) {
+        const QUrl url(uri);
+        if (url.isValid())
+            addUrls({url}, true);
+    });
+    connect(m_mpris, &MprisService::shuffleRequested,
+            m_shuffleButton, &QPushButton::setChecked);
+    connect(m_mpris, &MprisService::loopStatusRequested, this, [this](const QString &status) {
+        if (status == QStringLiteral("Track"))
+            setRepeatMode(RepeatMode::One);
+        else if (status == QStringLiteral("Playlist"))
+            setRepeatMode(RepeatMode::All);
+        else
+            setRepeatMode(RepeatMode::Off);
+    });
+    connect(m_shuffleButton, &QPushButton::toggled,
+            m_mpris, &MprisService::setShuffleState);
+    auto updateCapabilities = [this] {
+        const bool hasTracks = m_playlistModel->rowCount() > 0;
+        m_mpris->setCanGoNext(hasTracks);
+        m_mpris->setCanGoPrevious(hasTracks);
+    };
+    connect(m_playlistModel, &QAbstractItemModel::rowsInserted, this, updateCapabilities);
+    connect(m_playlistModel, &QAbstractItemModel::rowsRemoved, this, updateCapabilities);
+    connect(m_playlistModel, &QAbstractItemModel::modelReset, this, updateCapabilities);
+    updateCapabilities();
 }
 
 void MainWindow::addPaths(const QStringList &paths, bool playFirst)
@@ -840,10 +920,17 @@ void MainWindow::resetShuffleCycle()
 void MainWindow::cycleRepeatMode()
 {
     switch (m_repeatMode) {
-    case RepeatMode::Off: m_repeatMode = RepeatMode::All; break;
-    case RepeatMode::All: m_repeatMode = RepeatMode::One; break;
-    case RepeatMode::One: m_repeatMode = RepeatMode::Off; break;
+    case RepeatMode::Off: setRepeatMode(RepeatMode::All); break;
+    case RepeatMode::All: setRepeatMode(RepeatMode::One); break;
+    case RepeatMode::One: setRepeatMode(RepeatMode::Off); break;
     }
+}
+
+void MainWindow::setRepeatMode(RepeatMode mode)
+{
+    if (m_repeatMode == mode)
+        return;
+    m_repeatMode = mode;
     updateRepeatButton();
 }
 
@@ -854,8 +941,17 @@ void MainWindow::updateRepeatButton()
     case RepeatMode::All: m_repeatButton->setText(tr("Repeat all")); break;
     case RepeatMode::One: m_repeatButton->setText(tr("Repeat one")); break;
     }
+    m_repeatButton->setAccessibleName(m_repeatButton->text());
+    m_repeatButton->setToolTip(tr("Current mode: %1. Activate to change it.")
+                                   .arg(m_repeatButton->text()));
     if (m_wasabiWidget)
         m_wasabiWidget->setRepeatMode(static_cast<int>(m_repeatMode));
+    if (m_mpris) {
+        const QString status = m_repeatMode == RepeatMode::One ? QStringLiteral("Track")
+            : m_repeatMode == RepeatMode::All ? QStringLiteral("Playlist")
+                                              : QStringLiteral("None");
+        m_mpris->setLoopStatusState(status);
+    }
 }
 
 void MainWindow::refreshAudioOutputs()
@@ -971,6 +1067,9 @@ void MainWindow::updatePlaybackState(QMediaPlayer::PlaybackState state)
     m_playButton->setIcon(style()->standardIcon(state == QMediaPlayer::PlayingState
                                                     ? QStyle::SP_MediaPause
                                                     : QStyle::SP_MediaPlay));
+    const QString action = state == QMediaPlayer::PlayingState ? tr("Pause") : tr("Play");
+    m_playButton->setAccessibleName(action);
+    m_playButton->setToolTip(tr("%1 (Space)").arg(action));
 }
 
 void MainWindow::updateQueueSummary()
@@ -1040,6 +1139,19 @@ void MainWindow::showEqualizer()
                     bandSliders.at(band)->setValue(qRound(m_player->equalizer()->bandGain(band)));
             });
     dialog.exec();
+}
+
+void MainWindow::showCommandPalette()
+{
+    if (!m_commandPalette)
+        m_commandPalette = new CommandPaletteDialog(this);
+    QList<QAction *> commands;
+    for (QAction *menuAction : menuBar()->actions()) {
+        if (menuAction->menu())
+            commands.append(menuAction->menu()->actions());
+    }
+    m_commandPalette->setActions(commands);
+    m_commandPalette->openPalette();
 }
 
 void MainWindow::showSkinBrowser()
