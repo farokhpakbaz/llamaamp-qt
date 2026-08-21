@@ -1,0 +1,6 @@
+{
+    "name": "Soft Clipper",
+    "version": "1.0",
+    "category": "DSP",
+    "description": "A native Linux soft-clipping DSP example for LlamaAmp Qt"
+}

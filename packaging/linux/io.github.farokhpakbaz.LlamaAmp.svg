@@ -1,0 +1,23 @@
+<!-- SPDX-FileCopyrightText: 2026 LlamaAmp contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#263940"/>
+      <stop offset="1" stop-color="#091014"/>
+    </linearGradient>
+    <linearGradient id="sound" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#55d88a"/>
+      <stop offset="1" stop-color="#72c9ef"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="116" height="116" rx="28"
+        fill="url(#background)" stroke="#6096a8" stroke-width="5"/>
+  <path d="M30 67a34 34 0 0 1 68 0" fill="none" stroke="#d8edf3"
+        stroke-width="8" stroke-linecap="round"/>
+  <rect x="23" y="63" width="14" height="32" rx="7" fill="#72c9ef"/>
+  <rect x="91" y="63" width="14" height="32" rx="7" fill="#72c9ef"/>
+  <path d="M42 78h8l5-14 9 29 8-24 6 17 5-8h5" fill="none"
+        stroke="url(#sound)" stroke-width="5" stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

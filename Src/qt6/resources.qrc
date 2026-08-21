@@ -1,0 +1,7 @@
+<!-- SPDX-FileCopyrightText: 2026 LlamaAmp contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="llamaamp.svg">../../packaging/linux/io.github.farokhpakbaz.LlamaAmp.svg</file>
+    </qresource>
+</RCC>
