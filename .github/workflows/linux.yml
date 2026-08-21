@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: 2026 LlamaAmp contributors
+# SPDX-License-Identifier: Apache-2.0
+
+name: Linux CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Qt 6.8 / Ubuntu 24.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            dbus-x11 \
+            ffmpeg \
+            libasound2-dev \
+            libegl1-mesa-dev \
+            libgl1-mesa-dev \
+            libpulse-dev \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            ninja-build \
+            xvfb
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          modules: 'qtmultimedia'
+          cache: true
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DBUILD_TESTING=ON
+          -DLLAMAAMP_QT_WARNINGS_AS_ERRORS=ON
+          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/stage/usr
+
+      - name: Build
+        run: cmake --build build --parallel 2
+
+      - name: Test
+        run: xvfb-run --auto-servernum ctest --test-dir build --output-on-failure --timeout 30
+
+      - name: Install staged application
+        run: cmake --install build
+
+      - name: Verify installed executable
+        run: |
+          test -x stage/usr/bin/llamaamp
+          QT_QPA_PLATFORM=offscreen LLAMAAMP_QT_NO_AUDIO=1 \
+            stage/usr/bin/llamaamp --version
+
+      - name: Upload Linux install tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: llamaamp-qt-linux-x86_64
+          path: stage/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llamaamp-qt-linux-test-diagnostics
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/*.png
+          if-no-files-found: ignore
+          retention-days: 7
