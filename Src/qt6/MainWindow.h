@@ -7,6 +7,7 @@
 
 #include <QMainWindow>
 #include <QMediaPlayer>
+#include <QSize>
 #include <QStringList>
 #include <QUrl>
 
@@ -122,4 +123,5 @@ private:
     QList<int> m_shuffleRemaining;
     bool m_shuffleCycleActive = false;
     bool m_userSeeking = false;
+    QSize m_expandedSkinSize{445, 680};
 };

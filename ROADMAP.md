@@ -18,7 +18,8 @@ listening first, discoverability second, and compatibility third.
 - gapless playback and configurable crossfade where the Qt backend permits it
 - ReplayGain scanning and per-track/album loudness normalization
 - output-device hot-plug recovery without interrupting the queue
-- waveform-based seeking and an optional compact mini-player
+- [x] compact windowshade player for the built-in classic interface
+- waveform-based seeking
 
 ## Next: library experience
 
@@ -31,8 +32,8 @@ listening first, discoverability second, and compatibility third.
 
 - expand layout and component coverage using independently documented XML
   behavior and contributor-owned test fixtures
-- add docking, windowshade, and gamma-set primitives without importing
-  proprietary source or assets
+- add docking and gamma-set primitives without importing proprietary source or assets
+- extend the built-in windowshade behavior to generic compatible XML layouts
 - keep native Qt controls available whenever a compatible skin is incomplete
 
 ## Engineering and distribution

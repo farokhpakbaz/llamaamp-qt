@@ -230,6 +230,14 @@ void MainWindow::buildMenus()
             && m_centralStack->currentWidget() == m_wasabiWidget)
             m_wasabiWidget->setPage(4);
     });
+    viewMenu->addSeparator();
+    viewMenu->addAction(tr("Windowshade mode"), QKeySequence(Qt::CTRL | Qt::Key_W), this, [this] {
+        if (m_centralStack && m_wasabiWidget
+            && m_centralStack->currentWidget() != m_wasabiWidget)
+            setSkin(QStringLiteral("Classic Llama"));
+        if (m_wasabiWidget)
+            m_wasabiWidget->setWindowShaded(!m_wasabiWidget->isWindowShaded());
+    });
 
     auto *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("XML-skin compatibility report"), this, [this] {
@@ -507,8 +515,25 @@ void MainWindow::buildUi()
                 if (menuIndex >= 0 && menuIndex < menus.size() && menus.at(menuIndex)->menu())
                     menus.at(menuIndex)->menu()->popup(position);
             });
-    connect(m_wasabiWidget, &WasabiPlayerWidget::nativeInterfaceRequested,
-            this, [this] { m_skinCombo->setCurrentIndex(0); });
+    connect(m_wasabiWidget, &WasabiPlayerWidget::nativeInterfaceRequested, this, [this] {
+        const int nativeIndex = m_skinCombo->findText(QStringLiteral("Llama Green"));
+        if (nativeIndex >= 0)
+            m_skinCombo->setCurrentIndex(nativeIndex);
+    });
+    connect(m_wasabiWidget, &WasabiPlayerWidget::windowShadeChanged, this, [this](bool shaded) {
+        if (shaded) {
+            if (!isMaximized())
+                m_expandedSkinSize = size();
+            showNormal();
+            setMinimumSize(360, 36);
+            setMaximumHeight(36);
+            resize(qBound(360, m_expandedSkinSize.width(), 720), 36);
+        } else {
+            setMaximumHeight(QWIDGETSIZE_MAX);
+            setMinimumSize(445, 560);
+            resize(m_expandedSkinSize.expandedTo(QSize(445, 560)));
+        }
+    });
     statusBar()->showMessage(tr("Ready"));
 
     connect(openFilesButton, &QPushButton::clicked, this, &MainWindow::openFiles);
@@ -1253,7 +1278,10 @@ void MainWindow::restoreState()
         qBound(0, settings.value(QStringLiteral("playback/repeat"), 0).toInt(), 2));
     updateRepeatButton();
     m_skinCombo->setCurrentText(settings.value(QStringLiteral("appearance/skin"),
-                                                QStringLiteral("Llama Green")).toString());
+                                                QStringLiteral("Classic Llama")).toString());
+    if (m_centralStack->currentWidget() == m_wasabiWidget
+        && settings.value(QStringLiteral("appearance/windowShade"), false).toBool())
+        m_wasabiWidget->setWindowShaded(true);
     QList<float> equalizerGains;
     for (const QVariant &value : settings.value(QStringLiteral("dsp/equalizerGains")).toList())
         equalizerGains.append(value.toFloat());
@@ -1273,7 +1301,10 @@ void MainWindow::restoreState()
 void MainWindow::saveState() const
 {
     QSettings settings;
-    settings.setValue(QStringLiteral("window/geometry"), saveGeometry());
+    if (!m_wasabiWidget || !m_wasabiWidget->isWindowShaded())
+        settings.setValue(QStringLiteral("window/geometry"), saveGeometry());
+    settings.setValue(QStringLiteral("appearance/windowShade"),
+                      m_wasabiWidget && m_wasabiWidget->isWindowShaded());
     settings.setValue(QStringLiteral("audio/volume"), m_volumeSlider->value());
     settings.setValue(QStringLiteral("audio/device"), m_player->audioOutputId());
     settings.setValue(QStringLiteral("playback/shuffle"), m_shuffleButton->isChecked());
@@ -1360,6 +1391,48 @@ void MainWindow::applyStyle()
         QScrollBar:vertical { background: #101411; width: 10px; }
         QScrollBar::handle:vertical { background: #39443b; border-radius: 5px; min-height: 30px; }
     )");
+    const bool builtInClassic = m_skinCombo
+        && m_skinCombo->currentText() == QStringLiteral("Classic Llama");
+    if (builtInClassic) {
+        m_wasabiWidget->useBuiltInSkin();
+        m_player->setVideoOutput(m_wasabiWidget->videoOutput());
+        m_centralStack->setCurrentWidget(m_wasabiWidget);
+        menuBar()->hide();
+        statusBar()->hide();
+        if (!m_wasabiWidget->isWindowShaded()) {
+            setMaximumHeight(QWIDGETSIZE_MAX);
+            setMinimumSize(445, 560);
+            if (width() > 600 || height() < 650)
+                resize(445, 680);
+        }
+        qApp->setStyleSheet(QStringLiteral(R"(
+            QWidget { background: #18192f; color: #d7d9df;
+                      font-family: "DejaVu Sans", sans-serif; font-size: 10px; }
+            QLabel#classicPanelTitle { background: #303249; color: #e0e2e8;
+                                         border: 2px ridge #656985; font-size: 8px;
+                                         font-weight: bold; letter-spacing: 1px; }
+            QTabWidget::pane { border: 2px ridge #656985; background: #03050b; }
+            QTabBar::tab { background: #303249; color: #c7c9d2; padding: 3px 10px;
+                           border: 1px outset #6e728c; }
+            QTabBar::tab:selected { background: #4a4c66; color: white; }
+            QListView, QTableView { background: #020500; color: #19f22f;
+                                   alternate-background-color: #020500;
+                                   border: 1px solid #626780; outline: none;
+                                   font-family: "DejaVu Sans Mono", monospace; font-size: 10px; }
+            QListView::item { padding: 2px 5px; }
+            QListView::item:selected, QTableView::item:selected {
+                background: #183d75; color: white; }
+            QHeaderView::section { background: #303249; color: #d4d6de; padding: 3px;
+                                   border: 1px outset #696d87; }
+            QPushButton { background: #c7c9cf; color: #20212b; border: 2px outset #e6e7eb;
+                          border-radius: 0; padding: 2px 7px; font-size: 8px; font-weight: bold; }
+            QPushButton:pressed { border-style: inset; }
+            QScrollBar:vertical { background: #16172a; width: 13px; }
+            QScrollBar::handle:vertical { background: #aeb1bd; min-height: 20px;
+                                         border: 1px outset #e5e6e9; }
+        )"));
+        return;
+    }
     if (m_skinCombo && !m_skinCombo->currentData().toString().isEmpty()) {
         const QString directory = m_skinCombo->currentData().toString();
         const QList<LegacySkinInfo> catalog = SkinManager::legacySkinCatalog();
@@ -1389,6 +1462,8 @@ void MainWindow::applyStyle()
             return;
         }
     }
+    if (m_wasabiWidget && m_wasabiWidget->isWindowShaded())
+        m_wasabiWidget->setWindowShaded(false);
     if (m_centralStack)
         m_centralStack->setCurrentIndex(0);
     m_player->setVideoOutput(m_videoWidget);

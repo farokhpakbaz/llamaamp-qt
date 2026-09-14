@@ -4,6 +4,7 @@
  */
 
 #include "AudioVisualizationWidget.h"
+#include "Equalizer.h"
 #include "MediaLibrary.h"
 #include "PlayerController.h"
 #include "PlaylistModel.h"
@@ -34,37 +35,34 @@ void WasabiWidgetTest::toolbarAndPlayerControlsDispatch()
     PlaylistModel playlist;
     MediaLibrary library(directory.filePath(QStringLiteral("library.sqlite")));
     WasabiPlayerWidget widget(&player, &playlist, &library);
-    widget.resize(800, 600);
+    widget.resize(445, 680);
     widget.show();
 
     QWidget *deck = widget.findChild<QWidget *>(QStringLiteral("wasabiDeck"));
     QVERIFY(deck);
-    QSignalSpy menuSpy(&widget, &WasabiPlayerWidget::toolbarMenuRequested);
     QSignalSpy openSpy(&widget, &WasabiPlayerWidget::openRequested);
     QSignalSpy shuffleSpy(&widget, &WasabiPlayerWidget::shuffleToggled);
     QSignalSpy repeatSpy(&widget, &WasabiPlayerWidget::repeatRequested);
+    QSignalSpy shadeSpy(&widget, &WasabiPlayerWidget::windowShadeChanged);
 
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(82, 8));
-    QCOMPARE(menuSpy.count(), 1);
-    QCOMPARE(menuSpy.first().at(0).toInt(), 0);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(116, 8));
-    QCOMPARE(menuSpy.count(), 2);
-    QCOMPARE(menuSpy.at(1).at(0).toInt(), 1);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(150, 8));
-    QCOMPARE(menuSpy.count(), 3);
-    QCOMPARE(menuSpy.at(2).at(0).toInt(), 3);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(198, 8));
-    QCOMPARE(menuSpy.count(), 4);
-    QCOMPARE(menuSpy.at(3).at(0).toInt(), 4);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(232, 8));
-    QCOMPARE(menuSpy.count(), 5);
-    QCOMPARE(menuSpy.at(4).at(0).toInt(), 5);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(130, 100));
+    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(244, 155));
     QCOMPARE(openSpy.count(), 1);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(154, 100));
+    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(300, 155));
     QCOMPARE(shuffleSpy.count(), 1);
-    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(184, 100));
+    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(370, 155));
     QCOMPARE(repeatSpy.count(), 1);
+    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(deck->width() - 44, 12));
+    QCOMPARE(shadeSpy.count(), 1);
+    QVERIFY(widget.isWindowShaded());
+    QTest::mouseClick(deck, Qt::LeftButton, {}, QPoint(deck->width() - 44, 12));
+    QCOMPARE(shadeSpy.count(), 2);
+    QVERIFY(!widget.isWindowShaded());
+
+    QWidget *equalizer = widget.findChild<QWidget *>(QStringLiteral("classicEqualizer"));
+    QVERIFY(equalizer);
+    QTest::mouseClick(equalizer, Qt::LeftButton, {}, QPoint(395, 35));
+    QTest::mouseClick(equalizer, Qt::LeftButton, {}, QPoint(395, 35));
+    QCOMPARE(player.equalizer()->bandGain(0), 5.0F);
 }
 
 void WasabiWidgetTest::visualizationRendersPcm()

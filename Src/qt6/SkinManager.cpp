@@ -16,8 +16,8 @@
 
 QStringList SkinManager::availableSkins()
 {
-    return {QStringLiteral("Llama Green"), QStringLiteral("Amber Glow"),
-            QStringLiteral("Midnight Blue")};
+    return {QStringLiteral("Classic Llama"), QStringLiteral("Llama Green"),
+            QStringLiteral("Amber Glow"), QStringLiteral("Midnight Blue")};
 }
 
 QStringList SkinManager::discoveredLegacySkins()

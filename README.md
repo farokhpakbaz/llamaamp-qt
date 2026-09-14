@@ -22,7 +22,8 @@ request checklist.
 - a 10-band PCM equalizer with presets;
 - a live waveform and 48-band spectrum visualization;
 - a versioned native Linux `.so` plug-in ABI and example soft-clipping DSP;
-- native color themes and experimental user-supplied XML-skin support;
+- a built-in classic player interface with a compact windowshade mode, native
+  color themes, and experimental user-supplied XML-skin support;
 - desktop integration and automated Qt tests.
 
 ## Requirements
@@ -64,7 +65,12 @@ On Linux, LlamaAmp defaults to Qt's PulseAudio compatibility backend, which is
 normally backed by PipeWire on modern desktops. Set
 `QT_AUDIO_BACKEND=pipewire` to request Qt's direct PipeWire backend.
 
-## User-supplied XML skins
+## Classic interface and user-supplied XML skins
+
+New installations open with the built-in **Classic Llama** interface. Use its
+upper-right shade button, double-click its title bar, or press `Ctrl+W` to switch
+to the compact windowshade player. Choose **Llama Green** from the skin selector
+or use the classic interface's context menu to return to the native desktop UI.
 
 No third-party skins are included. LlamaAmp can catalogue user-supplied legacy
 XML skins and provides a partial compatibility surface for Bento-family layouts.
